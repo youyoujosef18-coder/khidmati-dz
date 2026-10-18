@@ -45,7 +45,7 @@ if echo "$FG" | grep -q "$PKG"; then pass "app in the foreground after launch"; 
 PAGE=$(page_info); diag "[launch] page: $PAGE"
 HEALTH=$(curl -s -m 15 "${APP_URL%/}/api/health" || true)
 if echo "$HEALTH" | grep -q '"database":"ok"'; then
-  if echo "$PAGE" | grep -q "\"href\":\"https://${APP_HOST}" && echo "$PAGE" | grep -qE "Demander un service|Trouver un technicien|اطلب خدمة"; then
+  if echo "$PAGE" | grep -q "\"href\":\"https://${APP_HOST}" && echo "$PAGE" | grep -qE "Un professionnel de confiance|حرفي موثوق"; then
     pass "Khidmati home page shown in the app ($APP_HOST)"
   else
     fail "Khidmati home page shown in the app ($APP_HOST)"
