@@ -31,7 +31,7 @@ const config: CapacitorConfig = {
     appendUserAgent: "KhidmatiAndroid/1.0",
     allowMixedContent: false,
     captureInput: false,
-    webContentsDebuggingEnabled: false,
+    // WebView debugging: on in debug builds (used by the emulator smoke test), off in release builds.
     // Older WebViews lack DOCUMENT_START_SCRIPT and would fall back to Capacitor's HTML proxy,
     // which drops server headers/status codes; they get the update notice in offline.html instead.
     minWebViewVersion: 90,

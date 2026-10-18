@@ -1,23 +1,37 @@
 #!/usr/bin/env bash
 # Emulator smoke test for the Khidmati Android app (run by .github/workflows/android.yml).
-# Checks: install, cold start without crash, page rendered, offline page when the network is off,
-# back button leaves the app from the start page. Screenshots + logcat go to $OUT.
+# Checks: install, cold start without crash, app in the foreground showing the real Khidmati page
+# (read through WebView debugging, debug builds only), offline screen when the network is off,
+# back button. Diagnostics + screenshots + logcat go to $OUT.
 set -uo pipefail
 
 APK="$1"
 OUT="${2:-smoke}"
 PKG="dz.khidmati.app"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+APP_URL="${KHIDMATI_APP_URL:-}"
+APP_HOST=$(echo "$APP_URL" | sed -E 's#^https?://([^/]+).*#\1#')
 mkdir -p "$OUT"
 FAIL=0
 pass() { echo "PASS  $1" | tee -a "$OUT/report.txt"; }
 fail() { echo "FAIL  $1" | tee -a "$OUT/report.txt"; FAIL=1; }
+skip() { echo "SKIP  $1" | tee -a "$OUT/report.txt"; }
+diag() { echo "$1" >> "$OUT/diagnostics.txt"; }
 
 crashed() { adb logcat -d | grep -E "FATAL EXCEPTION|AndroidRuntime: Process: $PKG" >/dev/null; }
-ui_text() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml "$OUT/$1.xml" >/dev/null 2>&1; cat "$OUT/$1.xml" 2>/dev/null; }
+foreground() { adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E "topResumedActivity|mResumedActivity" | tr -d '\r' | sed 's/^ *//'; }
+# What the WebView shows: {"href","title","text"} (or {"error"}).
+page_info() {
+  local pid
+  pid=$(adb shell pidof "$PKG" | tr -d '\r')
+  if [ -z "$pid" ]; then echo '{"error":"app not running"}'; return; fi
+  adb forward --remove-all >/dev/null 2>&1
+  adb forward tcp:9222 "localabstract:webview_devtools_remote_${pid}" >/dev/null 2>&1
+  node "$HERE/webview-inspect.mjs" 9222
+}
 
 adb wait-for-device
 adb install -r "$APK" && pass "APK installs" || fail "APK installs"
-adb shell pm grant "$PKG" android.permission.CAMERA 2>/dev/null || true
 
 # 1. Cold start with network
 adb logcat -c
@@ -26,39 +40,34 @@ sleep 25
 adb exec-out screencap -p > "$OUT/1-launch.png"
 if adb shell pidof "$PKG" >/dev/null; then pass "app process running after launch"; else fail "app process running after launch"; fi
 if crashed; then fail "no crash on launch"; else pass "no crash on launch"; fi
-# Only assert real Khidmati content when the server is actually reachable and healthy.
-APP_URL="${KHIDMATI_APP_URL:-}"
+FG=$(foreground); diag "[launch] foreground: $FG"
+if echo "$FG" | grep -q "$PKG"; then pass "app in the foreground after launch"; else fail "app in the foreground after launch"; fi
+PAGE=$(page_info); diag "[launch] page: $PAGE"
 HEALTH=$(curl -s -m 15 "${APP_URL%/}/api/health" || true)
 if echo "$HEALTH" | grep -q '"database":"ok"'; then
-  if ui_text launch | grep -q "Demander un service\|Trouver un technicien\|اطلب خدمة"; then pass "Khidmati home page rendered in the app"; else fail "Khidmati home page rendered in the app"; fi
+  if echo "$PAGE" | grep -q "\"href\":\"https://${APP_HOST}" && echo "$PAGE" | grep -qE "Demander un service|Trouver un technicien|اطلب خدمة"; then
+    pass "Khidmati home page shown in the app ($APP_HOST)"
+  else
+    fail "Khidmati home page shown in the app ($APP_HOST)"
+  fi
 else
-  echo "SKIP  Khidmati page check: server ${APP_URL:-?} is not deployed/healthy yet" | tee -a "$OUT/report.txt"
+  skip "Khidmati page check: server ${APP_URL:-?} is not deployed/healthy yet"
 fi
 
-# 2. Offline: network off -> local offline page
+# 2. Offline: network off -> local offline page (first launch) or the site's cached offline page
 adb shell svc wifi disable; adb shell svc data disable
 sleep 3
 adb shell am force-stop "$PKG"
 adb logcat -c
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
-sleep 12
+sleep 15
 adb exec-out screencap -p > "$OUT/2-offline.png"
-UI_OFF=$(ui_text offline)
-CAP_LOG=$(adb logcat -d -s Capacitor:* Capacitor/Console:* chromium:* 2>/dev/null | tail -60)
-echo "$CAP_LOG" > "$OUT/offline-capacitor.log"
-# Diagnostics for the CI annotation: visible texts + what Capacitor loaded.
-{
-  echo "[visible texts]"
-  echo "$UI_OFF" | grep -o 'text="[^"]*"\|content-desc="[^"]*"' | grep -v '=""' | head -25
-  echo "[capacitor log]"
-  echo "$CAP_LOG" | grep -iE "offline|error|loading app|localhost|ERR_" | head -20
-} > "$OUT/offline-diagnostics.txt"
-if echo "$UI_OFF" | grep -q "Connexion impossible"; then
-  pass "offline page shown without network (visible text)"
-elif echo "$CAP_LOG" | grep -q "localhost/offline.html"; then
-  pass "offline page shown without network (loaded per Capacitor log)"
+FG=$(foreground); diag "[offline] foreground: $FG"
+PAGE=$(page_info); diag "[offline] page: $PAGE"
+if echo "$PAGE" | grep -qE "Connexion impossible|Vous êtes hors ligne|غير متصل"; then
+  pass "offline screen shown without network"
 else
-  fail "offline page shown without network"
+  fail "offline screen shown without network"
 fi
 if crashed; then fail "no crash offline"; else pass "no crash offline"; fi
 
@@ -69,5 +78,6 @@ if crashed; then fail "no crash on back"; else pass "no crash on back"; fi
 
 adb shell svc wifi enable; adb shell svc data enable
 adb logcat -d > "$OUT/logcat.txt"
-echo "---"; cat "$OUT/report.txt"
+grep -E "Capacitor|chromium|AndroidRuntime|ActivityTaskManager.*$PKG" "$OUT/logcat.txt" | tail -25 >> "$OUT/diagnostics.txt" || true
+echo "---"; cat "$OUT/report.txt"; echo "---"; cat "$OUT/diagnostics.txt"
 exit $FAIL
