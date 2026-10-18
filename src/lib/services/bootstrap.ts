@@ -18,7 +18,15 @@ import { writeAudit } from "@/lib/audit";
 export const MIN_SETUP_TOKEN_LENGTH = 32;
 
 export function setupTokenConfigured() {
-  return (process.env.SETUP_TOKEN ?? "").trim().length >= MIN_SETUP_TOKEN_LENGTH;
+  return setupTokenStatus().state === "ok";
+}
+
+/** Why setup is (un)available, so the owner can fix the hosting variable. Never exposes the value. */
+export function setupTokenStatus(): { state: "missing" | "too_short" | "ok"; length: number } {
+  const length = (process.env.SETUP_TOKEN ?? "").trim().length;
+  if (length === 0) return { state: "missing", length };
+  if (length < MIN_SETUP_TOKEN_LENGTH) return { state: "too_short", length };
+  return { state: "ok", length };
 }
 
 export async function hasSuperAdmin(tx: DbOrTx = db) {

@@ -1190,6 +1190,8 @@ const fr = {
     submit: "Devenir super administrateur",
     done: "Votre compte est maintenant super administrateur.",
     disabledTitle: "Installation non activée",
+    missing: "Le serveur ne trouve aucune variable SETUP_TOKEN pour cet environnement (vérifiez le nom exact et que « Production » est coché).",
+    tooShort: "Le serveur voit SETUP_TOKEN, mais elle ne fait que {length} caractères : il en faut au moins {min}.",
     disabledBody: "Ajoutez la variable d'environnement SETUP_TOKEN (au moins {min} caractères aléatoires) chez votre hébergeur, redéployez, puis rechargez cette page.",
   },
   admin: {

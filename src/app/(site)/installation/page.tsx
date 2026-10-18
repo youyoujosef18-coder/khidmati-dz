@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { KeyRound } from "lucide-react";
 import { getI18n } from "@/lib/i18n/server";
 import { requireUser } from "@/lib/auth/guards";
-import { hasSuperAdmin, setupTokenConfigured, MIN_SETUP_TOKEN_LENGTH } from "@/lib/services/bootstrap";
+import { hasSuperAdmin, setupTokenStatus, MIN_SETUP_TOKEN_LENGTH } from "@/lib/services/bootstrap";
 import { Notice } from "@/components/ui/states";
 import { SetupForm } from "./setup-form";
 
@@ -14,6 +14,7 @@ export default async function InstallationPage() {
   if (await hasSuperAdmin()) notFound();
   const user = await requireUser();
   const { t } = await getI18n();
+  const token = setupTokenStatus();
   return (
     <div className="container-page max-w-lg py-12">
       <div className="card p-6 md:p-8">
@@ -22,11 +23,16 @@ export default async function InstallationPage() {
         </span>
         <h1 className="mt-4 text-xl font-semibold text-ink">{t("setup.title")}</h1>
         <p className="mt-2 text-sm text-muted">{t("setup.intro", { name: user.fullName })}</p>
-        {setupTokenConfigured() ? (
+        {token.state === "ok" ? (
           <SetupForm />
         ) : (
           <Notice tone="warning" title={t("setup.disabledTitle")} className="mt-6">
-            <p>{t("setup.disabledBody", { min: MIN_SETUP_TOKEN_LENGTH })}</p>
+            <p>
+              {token.state === "missing"
+                ? t("setup.missing")
+                : t("setup.tooShort", { length: token.length, min: MIN_SETUP_TOKEN_LENGTH })}
+            </p>
+            <p className="mt-2">{t("setup.disabledBody", { min: MIN_SETUP_TOKEN_LENGTH })}</p>
           </Notice>
         )}
       </div>
