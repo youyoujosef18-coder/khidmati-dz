@@ -40,7 +40,8 @@ const config: CapacitorConfig = {
     SystemBars: {
       // White status/navigation bar area with dark icons, matching the app header.
       style: "LIGHT",
-      insetsHandling: "css",
+      // Native padding keeps content clear of the system bars; no CSS variables are needed.
+      insetsHandling: "native",
     },
   },
 };
