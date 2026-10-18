@@ -1,0 +1,2 @@
+# The Android app shell is built separately (GitHub Actions), not part of the web deployment.
+mobile/

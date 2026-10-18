@@ -1,0 +1,171 @@
+name: Android app
+
+# Builds the Khidmati Android app (mobile/) on every change and on demand.
+# - Always: debug APK (installable for testing) + emulator smoke test.
+# - When the signing secrets exist: signed release APK + AAB (Google Play).
+#
+# Repository settings used (Settings → Secrets and variables → Actions):
+#   Variable  KHIDMATI_APP_URL           https URL of the deployed web app (default https://khidmati-dz.vercel.app)
+#   Secret    ANDROID_KEYSTORE_BASE64    base64 of the release keystore (.jks)
+#   Secret    ANDROID_KEYSTORE_PASSWORD
+#   Secret    ANDROID_KEY_ALIAS
+#   Secret    ANDROID_KEY_PASSWORD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "Web app URL to open (overrides the KHIDMATI_APP_URL variable)"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KHIDMATI_APP_URL: ${{ inputs.app_url || vars.KHIDMATI_APP_URL || 'https://khidmati-dz.vercel.app' }}
+  ANDROID_VERSION_CODE: ${{ github.run_number }}
+
+jobs:
+  build:
+    name: Build APK / AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Capacitor
+        run: npm ci --no-audit --no-fund
+
+      - name: Sync web shell into the Android project
+        run: npm run sync
+
+      - name: Build debug APK
+        working-directory: mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Decode release keystore
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK + AAB
+        if: env.HAS_KEYSTORE == 'true'
+        working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon --stacktrace assembleRelease bundleRelease
+
+      - name: Certificate fingerprints (for ANDROID_CERT_SHA256 / App Links)
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          {
+            echo "## Khidmati Android build ${ANDROID_VERSION_CODE}"
+            echo ""
+            echo "- Server opened by the app: \`${KHIDMATI_APP_URL}\`"
+            echo "- Debug APK: artifact **khidmati-debug-apk**"
+            if [ "$HAS_KEYSTORE" = "true" ]; then
+              echo "- Signed release: artifact **khidmati-release** (APK + AAB for Google Play)"
+              FP=$(keytool -list -v -keystore "$ANDROID_KEYSTORE_PATH" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" | grep -m1 "SHA256:" | awk '{print $2}')
+              echo "- Release certificate SHA-256: \`$FP\`"
+            else
+              echo "- Release signing not configured (no ANDROID_KEYSTORE_BASE64 secret): only the debug APK was built."
+            fi
+            DFP=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey 2>/dev/null | grep -m1 "SHA256:" | awk '{print $2}')
+            [ -n "$DFP" ] && echo "- Debug certificate SHA-256 (this runner only, changes every build): \`$DFP\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: khidmati-debug-apk
+          path: mobile/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_KEYSTORE == 'true'
+        with:
+          name: khidmati-release
+          path: |
+            mobile/android/app/build/outputs/apk/release/*.apk
+            mobile/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
+  smoke-test:
+    name: Emulator smoke test
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: khidmati-debug-apk
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run on Android 14 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash mobile/ci/smoke-test.sh "$(ls apk/*.apk | head -1)" smoke
+
+      - name: Smoke test report
+        if: always()
+        run: |
+          {
+            echo "## Emulator smoke test (Android 14)"
+            echo '```'
+            cat smoke/report.txt 2>/dev/null || echo "no report"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-results
+          path: smoke/

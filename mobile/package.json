@@ -1,0 +1,21 @@
+{
+  "name": "khidmati-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Khidmati DZ Android app (Capacitor shell around the Khidmati web platform)",
+  "scripts": {
+    "sync": "node scripts/prepare-www.mjs && cap sync android",
+    "open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/core": "8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

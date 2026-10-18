@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">خدمتي</string>
+    <string name="title_activity_main">خدمتي</string>
+    <string name="download_started">جارٍ تنزيل %1$s…</string>
+    <string name="download_failed">تعذّر بدء التنزيل.</string>
+    <string name="download_unsupported">لا يمكن تنزيل هذا النوع من الملفات.</string>
+    <string name="print_unavailable">الطباعة غير متاحة على هذا الجهاز.</string>
+</resources>
