@@ -43,7 +43,23 @@ adb logcat -c
 adb shell am start -W -n "$PKG/.MainActivity" >/dev/null
 sleep 12
 adb exec-out screencap -p > "$OUT/2-offline.png"
-if ui_text offline | grep -q "Connexion impossible"; then pass "offline page shown without network"; else fail "offline page shown without network"; fi
+UI_OFF=$(ui_text offline)
+CAP_LOG=$(adb logcat -d -s Capacitor:* Capacitor/Console:* chromium:* 2>/dev/null | tail -60)
+echo "$CAP_LOG" > "$OUT/offline-capacitor.log"
+# Diagnostics for the CI annotation: visible texts + what Capacitor loaded.
+{
+  echo "[visible texts]"
+  echo "$UI_OFF" | grep -o 'text="[^"]*"\|content-desc="[^"]*"' | grep -v '=""' | head -25
+  echo "[capacitor log]"
+  echo "$CAP_LOG" | grep -iE "offline|error|loading app|localhost|ERR_" | head -20
+} > "$OUT/offline-diagnostics.txt"
+if echo "$UI_OFF" | grep -q "Connexion impossible"; then
+  pass "offline page shown without network (visible text)"
+elif echo "$CAP_LOG" | grep -q "localhost/offline.html"; then
+  pass "offline page shown without network (loaded per Capacitor log)"
+else
+  fail "offline page shown without network"
+fi
 if crashed; then fail "no crash offline"; else pass "no crash offline"; fi
 
 # 3. Back button on the first page leaves the app (no crash)

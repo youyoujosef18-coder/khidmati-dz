@@ -26,7 +26,7 @@ The native Android app for Khidmati DZ (package `dz.khidmati.app`, min. Android 
 
 | Setting | Where | Purpose |
 |---|---|---|
-| `KHIDMATI_APP_URL` | GitHub → Settings → Secrets and variables → Actions → **Variables** | https URL of the deployed web app. Defaults to `https://khidmati-dz.vercel.app`. |
+| `KHIDMATI_APP_URL` | GitHub → Settings → Secrets and variables → Actions → **Variables** | https URL of the deployed web app. Defaults to `https://khidmati-dz-youyoujosef18-7672s-projects.vercel.app`. |
 | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | GitHub → Actions **Secrets** | Release signing (Google Play). Optional: without them only the debug APK is built. |
 | `ANDROID_CERT_SHA256` | Vercel environment variables (web app) | Release certificate fingerprint printed by the build, for App Links verification. |
 

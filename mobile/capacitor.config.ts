@@ -6,7 +6,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * no duplicated logic). Set KHIDMATI_APP_URL to the deployed web app before
  * `npx cap sync android` (the GitHub Actions workflow does this).
  */
-const raw = process.env.KHIDMATI_APP_URL ?? "https://khidmati-dz.vercel.app";
+const raw = process.env.KHIDMATI_APP_URL ?? "https://khidmati-dz-youyoujosef18-7672s-projects.vercel.app";
 const appUrl = new URL(raw);
 if (appUrl.protocol !== "https:") {
   throw new Error(`KHIDMATI_APP_URL must use https (got ${raw})`);
@@ -17,7 +17,8 @@ const config: CapacitorConfig = {
   appName: "Khidmati",
   webDir: "www",
   backgroundColor: "#FFFFFF",
-  loggingBehavior: "none",
+  // Capacitor logs only in debug builds (used by the emulator smoke test); release builds stay silent.
+  loggingBehavior: "debug",
   server: {
     url: appUrl.origin,
     // Only the Khidmati domain is opened inside the app; every other link opens externally.

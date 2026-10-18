@@ -146,7 +146,7 @@ The commands below run from the project folder on your computer (Node ≥ 20.9).
 2. **Database:** in the Vercel dashboard, open **khidmati-dz → Storage → Create Database → Neon** (the free plan is enough to start), then **Connect** it to the project for all environments. This sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`.
 3. **Other variables:**
    ```bash
-   npx vercel env add NEXT_PUBLIC_APP_URL production   # e.g. https://khidmati-dz.vercel.app (Project → Domains shows the real one)
+   npx vercel env add NEXT_PUBLIC_APP_URL production   # e.g. https://khidmati-dz-youyoujosef18-7672s-projects.vercel.app (Project → Domains shows the real one)
    openssl rand -hex 32 | npx vercel env add CRON_SECRET production
    ```
 4. **Deploy:** run `npx vercel --prod`. The build migrates the database and seeds the reference data. Then check that `GET /api/health` returns `"status":"ok"` and `"database":"ok"`.

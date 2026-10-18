@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
 // Production server the app opens. Must match capacitor.config.ts (both read KHIDMATI_APP_URL).
-def khidmatiAppUrl = System.getenv("KHIDMATI_APP_URL") ?: "https://khidmati-dz.vercel.app"
+def khidmatiAppUrl = System.getenv("KHIDMATI_APP_URL") ?: "https://khidmati-dz-youyoujosef18-7672s-projects.vercel.app"
 def khidmatiHost = new URI(khidmatiAppUrl).host
 // CI passes the run number so every build can be installed over the previous one.
 def khidmatiVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()

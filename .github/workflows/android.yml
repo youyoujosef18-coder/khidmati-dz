@@ -5,7 +5,7 @@ name: Android app
 # - When the signing secrets exist: signed release APK + AAB (Google Play).
 #
 # Repository settings used (Settings → Secrets and variables → Actions):
-#   Variable  KHIDMATI_APP_URL           https URL of the deployed web app (default https://khidmati-dz.vercel.app)
+#   Variable  KHIDMATI_APP_URL           https URL of the deployed web app (default https://khidmati-dz-youyoujosef18-7672s-projects.vercel.app)
 #   Secret    ANDROID_KEYSTORE_BASE64    base64 of the release keystore (.jks)
 #   Secret    ANDROID_KEYSTORE_PASSWORD
 #   Secret    ANDROID_KEY_ALIAS
@@ -27,7 +27,7 @@ permissions:
   contents: read
 
 env:
-  KHIDMATI_APP_URL: ${{ inputs.app_url || vars.KHIDMATI_APP_URL || 'https://khidmati-dz.vercel.app' }}
+  KHIDMATI_APP_URL: ${{ inputs.app_url || vars.KHIDMATI_APP_URL || 'https://khidmati-dz-youyoujosef18-7672s-projects.vercel.app' }}
   ANDROID_VERSION_CODE: ${{ github.run_number }}
 
 jobs:
@@ -169,6 +169,8 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           ENC=$(printf '%s\n' "$REPORT" | sed -e 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
+          DIAG=$(cat smoke/offline-diagnostics.txt 2>/dev/null | sed -e 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')
+          if [ -n "$DIAG" ]; then echo "::notice title=Offline diagnostics::$DIAG"; fi
           if grep -q "^FAIL" smoke/report.txt 2>/dev/null; then
             echo "::error title=Smoke test report::$ENC"
             CRASH=$(grep -A25 "FATAL EXCEPTION" smoke/logcat.txt 2>/dev/null | head -40 | sed -e 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')

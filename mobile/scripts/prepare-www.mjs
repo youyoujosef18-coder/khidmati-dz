@@ -2,7 +2,7 @@
 // knows where to send the user back to. Run automatically by `npm run sync`.
 import { writeFileSync } from "node:fs";
 
-const raw = process.env.KHIDMATI_APP_URL ?? "https://khidmati-dz.vercel.app";
+const raw = process.env.KHIDMATI_APP_URL ?? "https://khidmati-dz-youyoujosef18-7672s-projects.vercel.app";
 const url = new URL(raw);
 if (url.protocol !== "https:") throw new Error(`KHIDMATI_APP_URL must use https (got ${raw})`);
 writeFileSync(
