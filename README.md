@@ -99,13 +99,22 @@ npm run dev
 
 ## 4. Provisioning the first administrator
 
-There is no admin signup. Run this once, against the production database, from a trusted machine:
+There is no public admin signup. Either option makes one account **super_administrator**; the action is recorded in the audit log. Further staff (support agents, administrators) are then granted from **Admin → Utilisateurs**, and a role can only be granted by someone holding a higher one.
+
+**Option A: web setup (no terminal)**
+1. Create your normal account on the live site (`/inscription`).
+2. In Vercel, add the environment variable `SETUP_TOKEN` with 32+ random characters, then redeploy.
+3. While signed in, open `/installation`, paste the same code and confirm. You land in `/admin`.
+
+The page only works while no super administrator exists. It is rate-limited and compares the code in constant time, and two simultaneous claims cannot both succeed. Once used it returns 404 permanently, and you can delete `SETUP_TOKEN` afterwards.
+
+**Option B: command line**
 
 ```bash
 DATABASE_URL="<production url>" ADMIN_EMAIL=you@example.com ADMIN_NAME="Prénom Nom" npm run admin:create
 ```
 
-The script creates the account with the **super_administrator** role and prints a random one-time password **once** to your terminal. If the account already exists, it only grants the role. Log in at `/connexion` and change the password right away (Paramètres → Sécurité). Further staff accounts (support agents, administrators) are granted from **Admin → Utilisateurs**. A role can only be granted by someone holding a higher one.
+This creates the account and prints a random one-time password once; change it at first login (Paramètres → Sécurité). If the account already exists, it only grants the role.
 
 ## 5. Environment variables
 
@@ -117,6 +126,7 @@ The values live in `.env` locally or in Vercel project settings, never in git. S
 | `DATABASE_URL_UNPOOLED` | recommended | Direct URL for migrations, seed and admin script (falls back to `DATABASE_URL`) |
 | `NEXT_PUBLIC_APP_URL` | yes | Public base URL |
 | `CRON_SECRET` | yes | Protects `/api/cron/*`; Vercel Cron sends it automatically |
+| `SETUP_TOKEN` | once | One-time `/installation` code for the first super administrator (32+ chars); delete after use |
 | `DATABASE_POOL_MAX` | no | Connections per instance (default 5) |
 | `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM_ADDRESS` | no | Resend e-mail |
 | `SMS_PROVIDER=twilio`, `TWILIO_ACCOUNT_SID`, `SMS_PROVIDER_API_KEY`, `SMS_SENDER_ID` | no | Twilio SMS |
@@ -184,7 +194,7 @@ npm run test:e2e             # Playwright against E2E_BASE_URL (default http://l
 | ESLint | ✅ 0 problems |
 | i18n parity | ✅ 1 292 keys, FR/AR in sync |
 | Vitest unit (4 files) | ✅ 33/33 |
-| Vitest integration (real PostgreSQL 16) | ✅ 22/22 |
+| Vitest integration (real PostgreSQL 16) | ✅ 25/25 |
 | Production build (`next build`) | ✅ |
 | Playwright E2E on the production build (Chromium) | ✅ 6/6 |
 | Visual QA sweep: 33 pages × FR/AR × 1280 px / 390 px (132 renders) | ✅ no console errors, no horizontal overflow, correct `dir`, h1 present |

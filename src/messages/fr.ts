@@ -412,6 +412,9 @@ const fr = {
     forbidden: "Vous n'êtes pas autorisé(e) à effectuer cette action.",
     not_found: "Élément introuvable.",
     rate_limited: "Trop de tentatives. Patientez quelques minutes puis réessayez.",
+    setup_disabled: "L'installation n'est pas activée sur ce serveur.",
+    setup_invalid_token: "Code d'installation incorrect.",
+    setup_done: "Un super administrateur existe déjà. L'installation est fermée.",
     invalid_credentials: "Identifiants incorrects.",
     account_suspended: "Ce compte est suspendu. Contactez le support.",
     email_taken: "Un compte existe déjà avec cet e-mail.",
@@ -1178,6 +1181,16 @@ const fr = {
     publicProfileHidden: "Votre profil public n'est pas encore visible.",
     becomeTitle: "Devenir technicien",
     startOnboarding: "Commencer mon inscription",
+  },
+  setup: {
+    title: "Installation : premier administrateur",
+    intro: "Cette page n'est disponible qu'une seule fois. Elle fait de votre compte ({name}) le super administrateur de Khidmati, puis se ferme définitivement.",
+    tokenLabel: "Code d'installation (SETUP_TOKEN)",
+    tokenHint: "La valeur que vous avez définie dans les variables d'environnement de l'hébergeur.",
+    submit: "Devenir super administrateur",
+    done: "Votre compte est maintenant super administrateur.",
+    disabledTitle: "Installation non activée",
+    disabledBody: "Ajoutez la variable d'environnement SETUP_TOKEN (au moins {min} caractères aléatoires) chez votre hébergeur, redéployez, puis rechargez cette page.",
   },
   admin: {
     nav: {
