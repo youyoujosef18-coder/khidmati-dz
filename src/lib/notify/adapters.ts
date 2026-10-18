@@ -1,4 +1,5 @@
 import "server-only";
+import nodemailer from "nodemailer";
 
 export interface SendResult {
   ok: boolean;
@@ -54,6 +55,37 @@ const resend: EmailAdapter = {
   },
 };
 
+/**
+ * SMTP — e.g. Gmail with an App password (Google Account → Security → 2-Step Verification →
+ * App passwords). Requires SMTP_USER + SMTP_PASSWORD; SMTP_HOST/SMTP_PORT default to Gmail (465, TLS).
+ */
+const smtp: EmailAdapter = {
+  name: "smtp",
+  get configured() {
+    return Boolean(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+  },
+  async send(to, subject, text) {
+    try {
+      const port = Number(process.env.SMTP_PORT || 465);
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port,
+        secure: port === 465,
+        // Google shows App passwords in groups of four ("abcd efgh …"): spaces are not part of it.
+        auth: { user: process.env.SMTP_USER, pass: (process.env.SMTP_PASSWORD ?? "").replace(/\s+/g, "") },
+        connectionTimeout: TIMEOUT_MS,
+        greetingTimeout: TIMEOUT_MS,
+        socketTimeout: TIMEOUT_MS + 2000,
+      });
+      const from = process.env.SMTP_FROM || `Khidmati <${process.env.SMTP_USER}>`;
+      const info = await transporter.sendMail({ from, to, subject, text });
+      return { ok: true, providerReference: info.messageId };
+    } catch (e) {
+      return { ok: false, error: (e as Error).message.slice(0, 300) };
+    }
+  },
+};
+
 /** Development-only adapter: prints to the server console. Never active in production. */
 const devConsoleEmail: EmailAdapter = {
   name: "dev-console",
@@ -99,6 +131,7 @@ const twilio: SmsAdapter = {
 
 export function emailAdapter(): EmailAdapter | null {
   if (resend.configured) return resend;
+  if (smtp.configured) return smtp;
   if (devConsoleEmail.configured) return devConsoleEmail;
   return null;
 }

@@ -66,6 +66,13 @@ A full-stack marketplace connecting clients in Algeria with **verified** home-se
 
 **Notifications.** Always stored in-app, with an unread badge and per-user preferences. E-mail (Resend) and SMS (Twilio) adapters record each delivery attempt. When a provider is not configured, deliveries are recorded honestly as `skipped_not_configured`, and the admin dashboard shows *Non configuré*.
 
+**E-mail verification codes.** While an e-mail sender is configured:
+- **Sign-up:** a 6-digit code is e-mailed and the account opens only once it is entered. E-mail is required at sign-up.
+- **Sign-in:** a code is required the first time on each device; the device is then trusted for 30 days.
+- **Limits:** codes are stored hashed, valid 10 minutes, burned after 5 wrong attempts, with a 60 s resend cooldown and at most 5 sends.
+- **Resets:** changing or resetting the password forgets all trusted devices.
+- **No sender configured:** codes are off and login works with the password alone. This means a missing e-mail setup can never lock anyone out.
+
 **Chat.** Conversations per request or booking, with attachments, blocking and reporting. New messages arrive by polling (no websockets).
 
 **PWA.** Manifest, icons (including maskable) and a service worker that caches only public static assets and never private pages or the API. Offline banner, offline page, and forms refuse to submit while offline.
@@ -129,6 +136,7 @@ The values live in `.env` locally or in Vercel project settings, never in git. S
 | `SETUP_TOKEN` | once | One-time `/installation` code for the first super administrator (32+ chars); delete after use |
 | `DATABASE_POOL_MAX` | no | Connections per instance (default 5) |
 | `EMAIL_PROVIDER_API_KEY`, `EMAIL_FROM_ADDRESS` | no | Resend e-mail |
+| `SMTP_USER`, `SMTP_PASSWORD` (+ optional `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`) | no | SMTP e-mail, e.g. Gmail with an App password (defaults to smtp.gmail.com:465) |
 | `SMS_PROVIDER=twilio`, `TWILIO_ACCOUNT_SID`, `SMS_PROVIDER_API_KEY`, `SMS_SENDER_ID` | no | Twilio SMS |
 | `DEV_EMAIL_CONSOLE` | dev only | Print e-mails to the console (inactive in production) |
 
@@ -137,7 +145,7 @@ The values live in `.env` locally or in Vercel project settings, never in git. S
 | Integration | Status | What's needed |
 |---|---|---|
 | **PostgreSQL (production)** | **Blocking**: not provisioned | Neon (or any Postgres ≥ 14) URL |
-| E-mail (Resend) | Adapter implemented, **not configured, not tested against the live API** | Resend API key + verified sender domain |
+| E-mail (Gmail SMTP or Resend) | Adapters implemented. SMTP was tested end to end against a local SMTP server; **not yet configured or tested with your real Gmail** | Gmail address + App password (`SMTP_USER`, `SMTP_PASSWORD`), or Resend API key + verified domain |
 | SMS (Twilio) | Adapter implemented, **not configured, not tested against the live API** | Twilio SID, auth token, sender ID / number enabled for +213 |
 | Push notifications | Not implemented (shown as *Non configuré*) | — |
 | Online payments | **Not integrated by design**: cash only, recorded by the technician | — |
@@ -194,7 +202,7 @@ npm run test:e2e             # Playwright against E2E_BASE_URL (default http://l
 | ESLint | ✅ 0 problems |
 | i18n parity | ✅ 1 292 keys, FR/AR in sync |
 | Vitest unit (4 files) | ✅ 33/33 |
-| Vitest integration (real PostgreSQL 16) | ✅ 25/25 |
+| Vitest integration (real PostgreSQL 16) | ✅ 32/32 |
 | Production build (`next build`) | ✅ |
 | Playwright E2E on the production build (Chromium) | ✅ 6/6 |
 | Visual QA sweep: 33 pages × FR/AR × 1280 px / 390 px (132 renders) | ✅ no console errors, no horizontal overflow, correct `dir`, h1 present |

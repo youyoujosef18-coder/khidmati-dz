@@ -31,7 +31,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  serverExternalPackages: ["sharp", "postgres"],
+  serverExternalPackages: ["sharp", "postgres", "nodemailer"],
   experimental: {
     serverActions: {
       // Uploads go through /api/uploads; actions only carry form fields.

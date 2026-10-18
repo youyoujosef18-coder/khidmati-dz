@@ -10,6 +10,7 @@ import { numericCode, randomToken, sha256 } from "@/lib/crypto";
 import { emailAdapter, smsAdapter } from "@/lib/notify/adapters";
 import { tFor } from "@/lib/i18n/server";
 import { writeAudit } from "@/lib/audit";
+import { forgetTrustedDevices } from "@/lib/services/email-code";
 import type { Actor } from "./types";
 
 export const passwordSchema = z
@@ -22,16 +23,16 @@ export const registerSchema = z
   .object({
     fullName: z.string().trim().min(3).max(80),
     phone: z.string().trim().max(20).optional().default(""),
-    email: z.string().trim().toLowerCase().max(160).optional().default(""),
+    // Required: sign-up and new-device sign-in codes are sent by e-mail.
+    email: z.string().trim().toLowerCase().max(160),
     password: passwordSchema,
     preferredLocale: z.enum(["fr-DZ", "ar-DZ"]).default("fr-DZ"),
     acceptTerms: z.literal("on", { message: "validation.terms" }),
   })
   .superRefine((v, ctx) => {
-    if (!v.phone && !v.email) ctx.addIssue({ code: "custom", path: ["phone"], message: "validation.emailOrPhone" });
     if (v.phone && !normalizeAlgerianMobile(v.phone))
       ctx.addIssue({ code: "custom", path: ["phone"], message: "validation.phone" });
-    if (v.email && !z.email().safeParse(v.email).success)
+    if (!z.email().safeParse(v.email).success)
       ctx.addIssue({ code: "custom", path: ["email"], message: "validation.email" });
   });
 
@@ -117,6 +118,7 @@ export async function changePassword(actor: Actor, currentPassword: string, newP
         sql`${schema.sessions.id} <> ${keepSessionId}`,
       ),
     );
+  await forgetTrustedDevices(actor.id);
   await writeAudit({ actorId: actor.id, action: "auth.password_changed", entityType: "user", entityId: actor.id });
 }
 
@@ -183,6 +185,7 @@ export async function resetPassword(token: string, newPassword: string) {
   if (!userId) throw new AppError("invalid_code");
   await db.update(schema.users).set({ passwordHash: await hashPassword(newPassword) }).where(eq(schema.users.id, userId));
   await revokeAllSessions(userId);
+  await forgetTrustedDevices(userId);
   await writeAudit({ actorId: userId, action: "auth.password_reset", entityType: "user", entityId: userId });
 }
 

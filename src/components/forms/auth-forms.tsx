@@ -43,7 +43,7 @@ export function RegisterForm({ next }: { next?: string }) {
         {(p) => <Input {...p} type="tel" autoComplete="tel" inputMode="tel" placeholder="0555 12 34 56" className="ltr-nums" dir="ltr" />}
       </Field>
       <Field name="email" label={t("auth.email")} hint={t("auth.emailHint")}>
-        {(p) => <Input {...p} type="email" autoComplete="email" inputMode="email" dir="ltr" />}
+        {(p) => <Input {...p} type="email" autoComplete="email" inputMode="email" dir="ltr" required maxLength={160} />}
       </Field>
       <Field name="password" label={t("auth.password")} hint={t("auth.passwordHint")}>
         {(p) => <PasswordInput {...p} autoComplete="new-password" required minLength={8} />}

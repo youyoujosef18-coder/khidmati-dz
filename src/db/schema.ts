@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   customType,
   date,
   index,
@@ -255,6 +257,43 @@ export const sessions = pgTable(
     revokedAt: ts("revoked_at"),
   },
   (t) => [index("sessions_user_idx").on(t.userId)],
+);
+
+/** Pending e-mail code (sign-up or sign-in on a new device), bound to the browser by a cookie. */
+export const loginChallenges = pgTable(
+  "login_challenges",
+  {
+    id: text("id").primaryKey(), // SHA-256 of the challenge cookie token
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: text("purpose").notNull(), // 'signup' | 'login'
+    codeHash: text("code_hash").notNull(),
+    nextUrl: text("next_url"),
+    attempts: integer("attempts").notNull().default(0),
+    sendCount: integer("send_count").notNull().default(1),
+    lastSentAt: ts("last_sent_at").notNull().defaultNow(),
+    expiresAt: ts("expires_at").notNull(),
+    consumedAt: ts("consumed_at"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("login_challenges_user_idx").on(t.userId), check("login_challenges_purpose_chk", sql`${t.purpose} in ('signup','login')`)],
+);
+
+/** Browsers that completed an e-mail code: no code is asked there again until expiry. */
+export const trustedDevices = pgTable(
+  "trusted_devices",
+  {
+    id: text("id").primaryKey(), // SHA-256 of the device cookie token
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    userAgent: text("user_agent"),
+    expiresAt: ts("expires_at").notNull(),
+    lastUsedAt: ts("last_used_at").notNull().defaultNow(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("trusted_devices_user_idx").on(t.userId)],
 );
 
 export const authTokens = pgTable(
