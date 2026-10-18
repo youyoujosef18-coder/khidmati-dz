@@ -26,10 +26,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: android-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   KHIDMATI_APP_URL: ${{ inputs.app_url || vars.KHIDMATI_APP_URL || 'https://khidmati-dz.vercel.app' }}
   ANDROID_VERSION_CODE: ${{ github.run_number }}
