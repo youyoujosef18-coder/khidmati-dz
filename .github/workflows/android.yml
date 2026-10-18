@@ -94,6 +94,8 @@ jobs:
         run: bash ../ci/annotate-run.sh "Gradle release" ./gradlew --no-daemon --stacktrace assembleRelease bundleRelease
 
       - name: Certificate fingerprints (for ANDROID_CERT_SHA256 / App Links)
+        # Informational only: never blocks the APK upload or the emulator test.
+        continue-on-error: true
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -111,7 +113,9 @@ jobs:
               echo "- Release signing not configured (no ANDROID_KEYSTORE_BASE64 secret): only the debug APK was built."
             fi
             DFP=$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey 2>/dev/null | grep -m1 "SHA256:" | awk '{print $2}')
-            [ -n "$DFP" ] && echo "- Debug certificate SHA-256 (this runner only, changes every build): \`$DFP\`"
+            if [ -n "$DFP" ]; then
+              echo "- Debug certificate SHA-256 (this runner only, changes every build): \`$DFP\`"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v5
